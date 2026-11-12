@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block titulo %}Noticias{% endblock %}
+{% block contenido %}
+<h2>Noticias</h2>
+{% for f in filas %}
+<article class="noticia">
+    <h3>{{ f.titulo }}</h3>
+    <p>{{ f.descripcion }}</p>
+    <small>{{ f.fuente }}{% if f.empresa %} · {{ f.empresa }}{% endif %} · {{ f.fecha_publicacion }}</small>
+</article>
+{% else %}
+<p>No hay noticias.</p>
+{% endfor %}
+{% endblock %}

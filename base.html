@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block titulo %}Bolsa de Mercados{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Bolsa de Mercados</h1>
+        <nav>
+            <a href="{{ url_for('index') }}">Inicio</a>
+            <a href="{{ url_for('activos') }}">Activos</a>
+            <a href="{{ url_for('precios') }}">Precios</a>
+            <a href="{{ url_for('noticias') }}">Noticias</a>
+            <a href="{{ url_for('carteras') }}">Carteras</a>
+            <a href="{{ url_for('alertas') }}">Alertas</a>
+        </nav>
+    </header>
+    <main>
+        {% block contenido %}{% endblock %}
+    </main>
+    <footer>Proyecto bolsa_mercados · Flask + MySQL · OpenShift</footer>
+</body>
+</html>

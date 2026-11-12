@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block titulo %}Precios{% endblock %}
+{% block contenido %}
+<h2>Precios históricos</h2>
+<table>
+    <thead><tr><th>Activo</th><th>Precio</th><th>Fecha</th></tr></thead>
+    <tbody>
+        {% for f in filas %}
+        <tr><td>{{ f.activo }}</td><td>{{ f.precio }}</td><td>{{ f.fecha }}</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

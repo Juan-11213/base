@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block contenido %}
+<h2>Resumen</h2>
+<div class="tarjetas">
+    {% for nombre, n in totales.items() %}
+    <div class="tarjeta">
+        <span class="numero">{{ n }}</span>
+        <span class="etiqueta">{{ nombre|capitalize }}</span>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

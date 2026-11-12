@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block titulo %}Carteras{% endblock %}
+{% block contenido %}
+<h2>Carteras virtuales</h2>
+<table>
+    <thead>
+        <tr><th>Usuario</th><th>Cartera</th><th>Saldo virtual</th><th>Activo</th><th>Cantidad</th><th>Precio compra</th></tr>
+    </thead>
+    <tbody>
+        {% for f in filas %}
+        <tr>
+            <td>{{ f.usuario }}</td><td>{{ f.cartera }}</td><td>{{ f.saldo_virtual }}</td>
+            <td>{{ f.activo or '—' }}</td><td>{{ f.cantidad or '—' }}</td><td>{{ f.precio_compra or '—' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

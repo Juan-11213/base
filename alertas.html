@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block titulo %}Alertas{% endblock %}
+{% block contenido %}
+<h2>Alertas de precio</h2>
+<table>
+    <thead><tr><th>Usuario</th><th>Activo</th><th>Precio objetivo</th><th>Tipo</th><th>Estado</th></tr></thead>
+    <tbody>
+        {% for f in filas %}
+        <tr>
+            <td>{{ f.usuario }}</td><td>{{ f.activo }}</td><td>{{ f.precio_objetivo }}</td>
+            <td>{{ f.tipo_alerta }}</td><td>{{ f.estado }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

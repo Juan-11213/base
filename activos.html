@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block titulo %}Activos{% endblock %}
+{% block contenido %}
+<h2>Activos</h2>
+<table>
+    <thead>
+        <tr><th>Activo</th><th>Símbolo</th><th>Tipo</th><th>Empresa</th><th>Sector</th><th>Mercado</th><th>País</th><th>Último precio</th></tr>
+    </thead>
+    <tbody>
+        {% for f in filas %}
+        <tr>
+            <td>{{ f.activo }}</td><td>{{ f.simbolo }}</td><td>{{ f.tipo }}</td>
+            <td>{{ f.empresa }}</td><td>{{ f.sector }}</td>
+            <td>{{ f.mercado }}</td><td>{{ f.pais }}</td>
+            <td>{{ f.ultimo_precio }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

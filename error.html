@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block titulo %}Error{% endblock %}
+{% block contenido %}
+<h2>No se pudo conectar con la base de datos</h2>
+<p>Revisa las variables de entorno <code>DB_HOST</code>, <code>DB_USER</code>, <code>DB_PASSWORD</code> y <code>DB_NAME</code>.</p>
+<pre>{{ detalle }}</pre>
+{% endblock %}
