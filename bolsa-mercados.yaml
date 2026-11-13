@@ -320,7 +320,7 @@ spec:
       enableServiceLinks: false
       containers:
         - name: mysql
-          image: registry.access.redhat.com/rhel9/mysql-80:latest
+          image: quay.io/sclorg/mysql-80-c9s:latest
           ports:
             - name: mysql
               containerPort: 3306
@@ -447,7 +447,7 @@ spec:
       # Si la BD ya tiene tablas (volumen con datos) no toca nada.
       initContainers:
         - name: inicializar-bd
-          image: registry.access.redhat.com/rhel9/mysql-80:latest
+          image: quay.io/sclorg/mysql-80-c9s:latest
           envFrom:
             - configMapRef:
                 name: bolsa-mercados-config
