@@ -1,0 +1,590 @@
+# =====================================================================
+# Bolsa de Valores y Mercados Internacionales - Red Hat OpenShift Developer Sandbox
+# Uso: consola web -> +Add -> Import YAML -> pegar TODO -> Create
+#      (o: oc apply -f bolsa-mercados.yaml)
+# No lleva namespace: se crea en el proyecto que tengas seleccionado.
+# Repositorio de la app: https://github.com/Juan-11213/base
+# =====================================================================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-credenciales
+  labels:
+    app.kubernetes.io/part-of: bolsa-mercados
+type: Opaque
+stringData:
+  MYSQL_USER: bolsa
+  MYSQL_PASSWORD: 4082738ea545b97e
+  MYSQL_ROOT_PASSWORD: 24b6528082d98f94
+  MYSQL_DATABASE: bolsa_mercados
+---
+# Configuracion NO sensible de la app (host y puerto del Service interno de MySQL).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bolsa-mercados-config
+  labels:
+    app.kubernetes.io/part-of: bolsa-mercados
+data:
+  DB_HOST: mysql
+  DB_PORT: "3306"
+---
+# Tu SQL original. Es la copia de schema.sql del repositorio (mantenerlos iguales).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-schema
+  labels:
+    app.kubernetes.io/part-of: bolsa-mercados
+data:
+  schema.sql: |
+    CREATE DATABASE IF NOT EXISTS bolsa_mercados;
+    -- Asegura utf8mb4 (los simbolos de moneda como el euro y la libra lo necesitan).
+    ALTER DATABASE bolsa_mercados CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    USE bolsa_mercados;
+
+    CREATE TABLE usuarios (
+        id_usuario INT AUTO_INCREMENT PRIMARY KEY,
+        nombre VARCHAR(100) NOT NULL,
+        correo VARCHAR(100) UNIQUE NOT NULL,
+        contrasena VARCHAR(255) NOT NULL,
+        fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE mercados (
+        id_mercado INT AUTO_INCREMENT PRIMARY KEY,
+        nombre VARCHAR(100) NOT NULL,
+        pais VARCHAR(100) NOT NULL,
+        ciudad VARCHAR(100)
+    );
+
+    CREATE TABLE empresas (
+        id_empresa INT AUTO_INCREMENT PRIMARY KEY,
+        nombre VARCHAR(100) NOT NULL,
+        sector VARCHAR(100),
+        pais VARCHAR(100),
+        simbolo VARCHAR(20) UNIQUE
+    );
+
+    CREATE TABLE monedas (
+        id_moneda INT AUTO_INCREMENT PRIMARY KEY,
+        nombre VARCHAR(50) NOT NULL,
+        codigo VARCHAR(10) UNIQUE NOT NULL,
+        simbolo VARCHAR(10)
+    );
+
+    CREATE TABLE activos (
+        id_activo INT AUTO_INCREMENT PRIMARY KEY,
+        nombre VARCHAR(100) NOT NULL,
+        tipo VARCHAR(50),
+        simbolo VARCHAR(20),
+        id_empresa INT,
+        id_mercado INT,
+        FOREIGN KEY (id_empresa) REFERENCES empresas(id_empresa),
+        FOREIGN KEY (id_mercado) REFERENCES mercados(id_mercado)
+    );
+
+    CREATE TABLE precios_historicos (
+        id_precio INT AUTO_INCREMENT PRIMARY KEY,
+        id_activo INT NOT NULL,
+        precio DECIMAL(15,2) NOT NULL,
+        fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (id_activo) REFERENCES activos(id_activo)
+    );
+
+    CREATE TABLE tasas_cambio (
+        id_tasa INT AUTO_INCREMENT PRIMARY KEY,
+        id_moneda_origen INT NOT NULL,
+        id_moneda_destino INT NOT NULL,
+        tasa DECIMAL(15,6) NOT NULL,
+        fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (id_moneda_origen) REFERENCES monedas(id_moneda),
+        FOREIGN KEY (id_moneda_destino) REFERENCES monedas(id_moneda)
+    );
+
+    CREATE TABLE favoritos (
+        id_favorito INT AUTO_INCREMENT PRIMARY KEY,
+        id_usuario INT NOT NULL,
+        id_activo INT NOT NULL,
+        fecha_agregado TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
+        FOREIGN KEY (id_activo) REFERENCES activos(id_activo)
+    );
+
+    CREATE TABLE carteras_virtuales (
+        id_cartera INT AUTO_INCREMENT PRIMARY KEY,
+        id_usuario INT NOT NULL,
+        nombre VARCHAR(100) NOT NULL,
+        saldo_virtual DECIMAL(15,2) DEFAULT 100000.00,
+        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
+    );
+
+    CREATE TABLE detalle_cartera (
+        id_detalle INT AUTO_INCREMENT PRIMARY KEY,
+        id_cartera INT NOT NULL,
+        id_activo INT NOT NULL,
+        cantidad DECIMAL(15,4) NOT NULL,
+        precio_compra DECIMAL(15,2) NOT NULL,
+        fecha_compra TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (id_cartera) REFERENCES carteras_virtuales(id_cartera),
+        FOREIGN KEY (id_activo) REFERENCES activos(id_activo)
+    );
+
+    CREATE TABLE noticias (
+        id_noticia INT AUTO_INCREMENT PRIMARY KEY,
+        titulo VARCHAR(200) NOT NULL,
+        descripcion TEXT,
+        fuente VARCHAR(100),
+        fecha_publicacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+        id_empresa INT,
+        FOREIGN KEY (id_empresa) REFERENCES empresas(id_empresa)
+    );
+
+    CREATE TABLE alertas (
+        id_alerta INT AUTO_INCREMENT PRIMARY KEY,
+        id_usuario INT NOT NULL,
+        id_activo INT NOT NULL,
+        precio_objetivo DECIMAL(15,2) NOT NULL,
+        tipo_alerta VARCHAR(30),
+        estado VARCHAR(30) DEFAULT 'Activa',
+        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
+        FOREIGN KEY (id_activo) REFERENCES activos(id_activo)
+    );
+
+    INSERT INTO usuarios (nombre, correo, contrasena) VALUES
+    ('Juan Cuervo', 'juan@gmail.com', '123456'),
+    ('Maria Lopez', 'maria@gmail.com', '123456'),
+    ('Carlos Perez', 'carlos@gmail.com', '123456'),
+    ('Laura Gomez', 'laura@gmail.com', '123456');
+
+    INSERT INTO mercados (nombre, pais, ciudad) VALUES
+    ('NYSE', 'Estados Unidos', 'Nueva York'),
+    ('NASDAQ', 'Estados Unidos', 'Nueva York'),
+    ('Bolsa de Valores de Colombia', 'Colombia', 'Bogota'),
+    ('Bolsa de Tokio', 'Japon', 'Tokio'),
+    ('Bolsa de Londres', 'Reino Unido', 'Londres');
+
+    INSERT INTO empresas (nombre, sector, pais, simbolo) VALUES
+    ('Apple', 'Tecnologia', 'Estados Unidos', 'AAPL'),
+    ('Microsoft', 'Tecnologia', 'Estados Unidos', 'MSFT'),
+    ('Amazon', 'Comercio', 'Estados Unidos', 'AMZN'),
+    ('Google', 'Tecnologia', 'Estados Unidos', 'GOOGL'),
+    ('Ecopetrol', 'Energia', 'Colombia', 'ECOPETROL'),
+    ('Toyota', 'Automotriz', 'Japon', 'TM'),
+    ('Samsung', 'Tecnologia', 'Corea del Sur', 'SMSN'),
+    ('Coca Cola', 'Alimentos', 'Estados Unidos', 'KO');
+
+    INSERT INTO monedas (nombre, codigo, simbolo) VALUES
+    ('Dolar estadounidense', 'USD', '$'),
+    ('Peso colombiano', 'COP', '$'),
+    ('Euro', 'EUR', '€'),
+    ('Libra esterlina', 'GBP', '£'),
+    ('Yen japones', 'JPY', '¥');
+
+    INSERT INTO activos (nombre, tipo, simbolo, id_empresa, id_mercado) VALUES
+    ('Apple Inc.', 'Accion', 'AAPL', 1, 2),
+    ('Microsoft Corporation', 'Accion', 'MSFT', 2, 2),
+    ('Amazon.com Inc.', 'Accion', 'AMZN', 3, 2),
+    ('Alphabet Inc.', 'Accion', 'GOOGL', 4, 2),
+    ('Ecopetrol S.A.', 'Accion', 'ECOPETROL', 5, 3),
+    ('Toyota Motor', 'Accion', 'TM', 6, 1),
+    ('Samsung Electronics', 'Accion', 'SMSN', 7, 4),
+    ('Coca Cola Company', 'Accion', 'KO', 8, 1);
+
+    INSERT INTO precios_historicos (id_activo, precio, fecha) VALUES
+    (1, 225.50, '2026-10-01 10:00:00'),
+    (1, 230.75, '2026-10-02 10:00:00'),
+    (2, 410.20, '2026-10-01 10:00:00'),
+    (2, 415.80, '2026-10-02 10:00:00'),
+    (3, 195.30, '2026-10-01 10:00:00'),
+    (3, 198.50, '2026-10-02 10:00:00'),
+    (4, 175.40, '2026-10-01 10:00:00'),
+    (4, 180.20, '2026-10-02 10:00:00'),
+    (5, 1850.00, '2026-10-01 10:00:00'),
+    (5, 1900.00, '2026-10-02 10:00:00'),
+    (6, 195.00, '2026-10-01 10:00:00'),
+    (6, 200.00, '2026-10-02 10:00:00'),
+    (7, 65.50, '2026-10-01 10:00:00'),
+    (7, 68.00, '2026-10-02 10:00:00'),
+    (8, 70.20, '2026-10-01 10:00:00'),
+    (8, 72.50, '2026-10-02 10:00:00');
+
+    INSERT INTO tasas_cambio
+    (id_moneda_origen, id_moneda_destino, tasa) VALUES
+    (1, 2, 4000.000000),
+    (1, 3, 0.920000),
+    (1, 4, 0.790000),
+    (1, 5, 150.000000),
+    (2, 1, 0.000250),
+    (3, 1, 1.087000),
+    (4, 1, 1.265000),
+    (5, 1, 0.006670);
+
+    INSERT INTO favoritos (id_usuario, id_activo) VALUES
+    (1, 1),
+    (1, 2),
+    (1, 5),
+    (2, 3),
+    (2, 4),
+    (3, 6),
+    (4, 7);
+
+    INSERT INTO carteras_virtuales
+    (id_usuario, nombre, saldo_virtual) VALUES
+    (1, 'Mi cartera principal', 100000.00),
+    (2, 'Cartera tecnologica', 80000.00),
+    (3, 'Cartera internacional', 120000.00),
+    (4, 'Mi primera cartera', 50000.00);
+
+    INSERT INTO detalle_cartera
+    (id_cartera, id_activo, cantidad, precio_compra) VALUES
+    (1, 1, 10, 225.50),
+    (1, 2, 5, 410.20),
+    (2, 3, 8, 195.30),
+    (2, 4, 6, 175.40),
+    (3, 5, 20, 1850.00),
+    (3, 6, 4, 195.00),
+    (4, 7, 10, 65.50);
+
+    INSERT INTO noticias
+    (titulo, descripcion, fuente, id_empresa) VALUES
+    ('Apple presenta nuevos avances tecnologicos',
+     'La empresa anuncia mejoras en sus productos.',
+     'Noticias Financieras', 1),
+
+    ('Microsoft fortalece sus servicios digitales',
+     'La compania presenta nuevas herramientas.',
+     'Economia Global', 2),
+
+    ('Amazon amplia sus operaciones internacionales',
+     'La empresa busca fortalecer su comercio.',
+     'Mercados Internacionales', 3),
+
+    ('Google anuncia nuevos proyectos de inteligencia artificial',
+     'La empresa presenta avances tecnologicos.',
+     'Tecnologia Hoy', 4),
+
+    ('Ecopetrol informa resultados empresariales',
+     'La compania presenta sus resultados financieros.',
+     'Noticias Colombia', 5),
+
+    ('Toyota presenta nuevos modelos de vehiculos',
+     'La empresa anuncia novedades en el sector automotriz.',
+     'Economia Mundial', 6);
+
+    INSERT INTO alertas
+    (id_usuario, id_activo, precio_objetivo, tipo_alerta) VALUES
+    (1, 1, 240.00, 'Mayor que'),
+    (1, 2, 400.00, 'Menor que'),
+    (2, 3, 200.00, 'Mayor que'),
+    (3, 5, 2000.00, 'Mayor que'),
+    (4, 7, 70.00, 'Mayor que');
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-datos
+  labels:
+    app.kubernetes.io/part-of: bolsa-mercados
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  labels:
+    app: mysql
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/part-of: bolsa-mercados
+    app.openshift.io/runtime: mysql-database
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+        app.kubernetes.io/part-of: bolsa-mercados
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: mysql
+          image: registry.access.redhat.com/rhel9/mysql-80:latest
+          ports:
+            - name: mysql
+              containerPort: 3306
+          env:
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credenciales
+                  key: MYSQL_USER
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credenciales
+                  key: MYSQL_PASSWORD
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credenciales
+                  key: MYSQL_ROOT_PASSWORD
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credenciales
+                  key: MYSQL_DATABASE
+          readinessProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 45
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: datos
+              mountPath: /var/lib/mysql/data
+      volumes:
+        - name: datos
+          persistentVolumeClaim:
+            claimName: mysql-datos
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  labels:
+    app: mysql
+    app.kubernetes.io/part-of: bolsa-mercados
+spec:
+  selector:
+    app: mysql
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: 3306
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: bolsa-mercados
+  labels:
+    app: bolsa-mercados
+    app.kubernetes.io/part-of: bolsa-mercados
+---
+# Construye la imagen con el Dockerfile del repositorio de GitHub.
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: bolsa-mercados
+  labels:
+    app: bolsa-mercados
+    app.kubernetes.io/part-of: bolsa-mercados
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/Juan-11213/base
+      ref: main
+  strategy:
+    type: Docker
+    dockerStrategy: {}
+  output:
+    to:
+      kind: ImageStreamTag
+      name: bolsa-mercados:latest
+  triggers:
+    - type: ConfigChange
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bolsa-mercados
+  labels:
+    app: bolsa-mercados
+    app.kubernetes.io/name: bolsa-mercados
+    app.kubernetes.io/part-of: bolsa-mercados
+    app.openshift.io/runtime: python
+  annotations:
+    app.openshift.io/vcs-uri: https://github.com/Juan-11213/base
+    app.openshift.io/connects-to: '[{"apiVersion":"apps/v1","kind":"Deployment","name":"mysql"}]'
+    image.openshift.io/triggers: '[{"from":{"kind":"ImageStreamTag","name":"bolsa-mercados:latest"},"fieldPath":"spec.template.spec.containers[?(@.name==\"web\")].image"}]'
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: bolsa-mercados
+  template:
+    metadata:
+      labels:
+        app: bolsa-mercados
+        app.kubernetes.io/part-of: bolsa-mercados
+    spec:
+      enableServiceLinks: false
+      # Antes de arrancar Flask: espera a MySQL y carga schema.sql SOLO si la BD no tiene tablas.
+      # Si la BD ya tiene tablas (volumen con datos) no toca nada.
+      initContainers:
+        - name: inicializar-bd
+          image: registry.access.redhat.com/rhel9/mysql-80:latest
+          envFrom:
+            - configMapRef:
+                name: bolsa-mercados-config
+          env:
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credenciales
+                  key: MYSQL_USER
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credenciales
+                  key: MYSQL_PASSWORD
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credenciales
+                  key: MYSQL_DATABASE
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -u
+              export MYSQL_PWD="$MYSQL_PASSWORD"
+              CONEXION="-h $DB_HOST -P $DB_PORT -u$MYSQL_USER"
+
+              echo "Esperando a MySQL en $DB_HOST:$DB_PORT ..."
+              until mysql $CONEXION -e "SELECT 1" "$MYSQL_DATABASE" >/dev/null 2>&1; do
+                sleep 5
+              done
+              echo "MySQL responde."
+
+              TABLAS=$(mysql $CONEXION -N -B -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$MYSQL_DATABASE'")
+              if [ -z "$TABLAS" ]; then
+                echo "ERROR: no se pudo contar las tablas"
+                exit 1
+              fi
+
+              if [ "$TABLAS" = "0" ]; then
+                echo "Base de datos vacia: cargando schema.sql ..."
+                if mysql $CONEXION --default-character-set=utf8mb4 < /schema/schema.sql; then
+                  echo "schema.sql cargado correctamente."
+                else
+                  echo "ERROR: fallo la carga. Se limpian las tablas para reintentar desde cero."
+                  mysql $CONEXION "$MYSQL_DATABASE" -e "SET FOREIGN_KEY_CHECKS=0; DROP TABLE IF EXISTS alertas, noticias, detalle_cartera, carteras_virtuales, favoritos, tasas_cambio, precios_historicos, activos, monedas, empresas, mercados, usuarios; SET FOREIGN_KEY_CHECKS=1;"
+                  exit 1
+                fi
+              else
+                echo "La base de datos ya tiene $TABLAS tablas: no se carga nada."
+              fi
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+          volumeMounts:
+            - name: schema
+              mountPath: /schema
+      containers:
+        - name: web
+          image: bolsa-mercados:latest
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: bolsa-mercados-config
+          env:
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credenciales
+                  key: MYSQL_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credenciales
+                  key: MYSQL_PASSWORD
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credenciales
+                  key: MYSQL_DATABASE
+          readinessProbe:
+            httpGet:
+              path: /salud
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 384Mi
+      volumes:
+        - name: schema
+          configMap:
+            name: mysql-schema
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bolsa-mercados
+  labels:
+    app: bolsa-mercados
+    app.kubernetes.io/part-of: bolsa-mercados
+spec:
+  selector:
+    app: bolsa-mercados
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: bolsa-mercados
+  labels:
+    app: bolsa-mercados
+    app.kubernetes.io/part-of: bolsa-mercados
+spec:
+  to:
+    kind: Service
+    name: bolsa-mercados
+    weight: 100
+  port:
+    targetPort: http
+  wildcardPolicy: None
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
